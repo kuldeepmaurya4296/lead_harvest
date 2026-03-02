@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lead Extractor SaaS</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        :root {
+            --bg-body: #0f172a;
+            /* Slate 900 */
+            --bg-card: rgba(30, 41, 59, 0.7);
+            /* Slate 800 with opacity */
+            --text-main: #f8fafc;
+            /* Slate 50 */
+            --text-muted: #94a3b8;
+            /* Slate 400 */
+            --primary: #3b82f6;
+            /* Blue 500 */
+            --glass-border: rgba(255, 255, 255, 0.1);
+        }
+
+        body {
+            background-color: var(--bg-body);
+            color: var(--text-main);
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background-image: radial-gradient(circle at top right, #1e3a8a 0%, transparent 40%),
+                radial-gradient(circle at bottom left, #064e3b 0%, transparent 40%);
+            background-attachment: fixed;
+            min-height: 100vh;
+        }
+
+        .glass {
+            background: var(--bg-card);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--glass-border);
+            box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
+        }
+
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.1);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px -10px #3b82f6;
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            background: #475569;
+        }
+
+        .action-icon {
+            transition: all 0.2s ease;
+        }
+
+        .action-icon:hover {
+            transform: scale(1.15);
+        }
+
+        th {
+            cursor: pointer;
+            user-select: none;
+        }
+
+        th:hover {
+            color: #fff;
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        /* Animations */
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .animate-fade-in {
+            animation: fadeIn 0.4s ease-out forwards;
+        }
+    </style>
+</head>
+
+<body class="p-4 md:p-8">
+
+    <div class="max-w-7xl mx-auto space-y-8 animate-fade-in">
+        <!-- Header -->
+        <header class="text-center space-y-4 py-8">
+            <div class="inline-flex items-center justify-center p-3 glass rounded-2xl mb-2 text-blue-400">
+                <i data-lucide="map-pin" class="w-8 h-8"></i>
+            </div>
+            <h1 class="text-4xl md:text-5xl font-extrabold tracking-tight text-white drop-shadow-lg">
+                Google Maps <span class="text-blue-500">Lead Extractor</span>
+            </h1>
+            <p class="text-lg var(--text-muted) max-w-2xl mx-auto">
+                Input a Maps search URL and instantly harvest high-quality local business leads.
+            </p>
+        </header>
+
+        <!-- Control Panel -->
+        <div class="glass rounded-2xl p-6 md:p-8 space-y-6">
+            <form id="scrape-form" class="flex flex-col md:flex-row gap-4">
+                <div class="relative flex-1">
+                    <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400">
+                        <i data-lucide="search" class="w-5 h-5"></i>
+                    </div>
+                    <input type="url" id="url-input" required placeholder="Paste Google Maps search URL here..."
+                        class="w-full bg-slate-800/50 border border-slate-700 text-white text-lg rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 block pl-12 p-4 transition-all">
+                </div>
+                <button type="submit" id="start-btn"
+                    class="btn-primary text-white font-semibold rounded-xl px-8 py-4 flex items-center justify-center gap-2 text-lg whitespace-nowrap">
+                    <i data-lucide="play" class="w-5 h-5"></i>
+                    Extract Leads
+                </button>
+            </form>
+
+            <!-- Progress Area (Hidden by default) -->
+            <div id="progress-container" class="hidden space-y-3 pt-4 border-t border-slate-700/50">
+                <div class="flex justify-between text-sm font-medium">
+                    <span id="status-text" class="text-blue-400 animate-pulse">Initializing...</span>
+                    <span id="progress-text">0%</span>
+                </div>
+                <div class="w-full bg-slate-800 rounded-full h-2.5 overflow-hidden">
+                    <div id="progress-bar" class="bg-blue-500 h-2.5 rounded-full"
+                        style="width: 0%; transition: width 0.3s ease;"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Data Display Area -->
+        <div id="data-container" class="glass rounded-2xl p-6 min-h-[400px] flex flex-col hidden animate-fade-in"
+            style="animation-delay: 0.1s;">
+            <!-- Toolbar -->
+            <div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+                <div class="relative w-full md:w-96">
+                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                        <i data-lucide="filter" class="w-4 h-4"></i>
+                    </div>
+                    <input type="text" id="search-input" placeholder="Search all fields..."
+                        class="w-full bg-slate-800/50 border border-slate-700 text-sm rounded-lg focus:ring-2 focus:ring-blue-500 block pl-10 p-2.5 text-white">
+                </div>
+
+                <a href="/api/download" download id="download-btn"
+                    class="bg-emerald-600 hover:bg-emerald-500 text-white font-medium rounded-lg px-5 py-2.5 flex items-center gap-2 transition-colors w-full md:w-auto justify-center">
+                    <i data-lucide="download" class="w-4 h-4"></i>
+                    Download Excel
+                </a>
+            </div>
+
+            <!-- Table Container -->
+            <div class="flex-1 overflow-x-auto rounded-xl border border-slate-700/50">
+                <table class="w-full text-sm text-left text-slate-300">
+                    <thead class="text-xs uppercase bg-slate-800/80 text-slate-400 sticky top-0">
+                        <tr>
+                            <th scope="col" class="px-6 py-4" data-sort="Name">Name <i data-lucide="arrow-up-down"
+                                    class="w-3 h-3 inline ml-1"></i></th>
+                            <th scope="col" class="px-6 py-4" data-sort="City">City <i data-lucide="arrow-up-down"
+                                    class="w-3 h-3 inline ml-1"></i></th>
+                            <th scope="col" class="px-6 py-4" data-sort="Phone">Phone <i data-lucide="arrow-up-down"
+                                    class="w-3 h-3 inline ml-1"></i></th>
+                            <th scope="col" class="px-6 py-4" data-sort="Website">Website <i data-lucide="arrow-up-down"
+                                    class="w-3 h-3 inline ml-1"></i></th>
+                            <th scope="col" class="px-6 py-4" data-sort="Instagram">Social <i
+                                    data-lucide="arrow-up-down" class="w-3 h-3 inline ml-1"></i></th>
+                            <th scope="col" class="px-6 py-4 text-center">Actions</th>
+                            <th scope="col" class="px-6 py-4" data-sort="About">About <i data-lucide="arrow-up-down"
+                                    class="w-3 h-3 inline ml-1"></i></th>
+                            <th scope="col" class="px-6 py-4" data-sort="Notes">Notes <i data-lucide="arrow-up-down"
+                                    class="w-3 h-3 inline ml-1"></i></th>
+                        </tr>
+                    </thead>
+                    <tbody id="table-body" class="divide-y divide-slate-700/50">
+                        <!-- Rows will be injected here -->
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="mt-4 text-sm text-slate-400 flex justify-between">
+                <div id="table-info">Showing 0 records</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        lucide.createIcons();
+
+        const form = document.getElementById('scrape-form');
+        const urlInput = document.getElementById('url-input');
+        const startBtn = document.getElementById('start-btn');
+        const progressContainer = document.getElementById('progress-container');
+        const statusText = document.getElementById('status-text');
+        const progressText = document.getElementById('progress-text');
+        const progressBar = document.getElementById('progress-bar');
+        const dataContainer = document.getElementById('data-container');
+        const tableBody = document.getElementById('table-body');
+        const searchInput = document.getElementById('search-input');
+        const tableInfo = document.getElementById('table-info');
+
+        let allData = [];
+        let currentSort = { column: null, asc: true };
+
+        // --- SSE Event handling ---
+        let eventSource = null;
+
+        form.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const url = urlInput.value.trim();
+            if (!url) return;
+
+            // Reset UI
+            allData = [];
+            renderTable();
+            dataContainer.classList.remove('hidden');
+            progressContainer.classList.remove('hidden');
+            startBtn.disabled = true;
+            urlInput.disabled = true;
+            progressBar.style.width = '0%';
+            progressText.innerText = '0%';
+            statusText.innerText = 'Connecting...';
+            statusText.classList.add('animate-pulse');
+
+            if (eventSource) eventSource.close();
+
+            eventSource = new EventSource(`/api/stream?url=${encodeURIComponent(url)}`);
+
+            eventSource.addEventListener('status', (e) => {
+                const data = JSON.parse(e.data);
+                statusText.innerText = data.message;
+                if (data.progress !== undefined) {
+                    progressBar.style.width = `${data.progress}%`;
+                    progressText.innerText = `${Math.round(data.progress)}%`;
+                }
+            });
+
+            eventSource.addEventListener('record', (e) => {
+                const data = JSON.parse(e.data);
+                allData.push(data);
+                renderTable();
+            });
+
+            eventSource.addEventListener('done', (e) => {
+                const data = JSON.parse(e.data);
+                statusText.innerText = data.message;
+                statusText.classList.remove('animate-pulse');
+                progressBar.style.width = '100%';
+                progressText.innerText = '100%';
+                finishScraping();
+            });
+
+            eventSource.addEventListener('error', (e) => {
+                let msg = 'Unknown error occurred.';
+                try { msg = JSON.parse(e.data).message; } catch (err) { }
+                statusText.innerText = `Error: ${msg}`;
+                statusText.classList.remove('animate-pulse');
+                statusText.classList.replace('text-blue-400', 'text-red-400');
+                progressBar.classList.replace('bg-blue-500', 'bg-red-500');
+                finishScraping();
+            });
+        });
+
+        function finishScraping() {
+            startBtn.disabled = false;
+            urlInput.disabled = false;
+            if (eventSource) eventSource.close();
+        }
+
+        // --- Table Rendering & Filtering ---
+        function renderTable() {
+            const query = searchInput.value.toLowerCase();
+
+            let filteredData = allData.filter(row => {
+                return Object.values(row).some(val =>
+                    String(val).toLowerCase().includes(query)
+                );
+            });
+
+            if (currentSort.column) {
+                filteredData.sort((a, b) => {
+                    let valA = String(a[currentSort.column] || '').toLowerCase();
+                    let valB = String(b[currentSort.column] || '').toLowerCase();
+                    if (valA < valB) return currentSort.asc ? -1 : 1;
+                    if (valA > valB) return currentSort.asc ? 1 : -1;
+                    return 0;
+                });
+            }
+
+            tableBody.innerHTML = '';
+
+            filteredData.forEach(row => {
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-slate-800/50 transition-colors group';
+
+                // Actions mapping
+                let actionsHtml = '';
+
+                // WhatsApp Link
+                if (row.whatsapp_link) {
+                    actionsHtml += `<a href="${row.whatsapp_link}" target="_blank" title="Message on WhatsApp" class="text-green-400 action-icon hover:text-green-300 inline-block p-1">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21l1.65-3.8a9 9 0 1 1 3.4 2.9L3 21"/><path d="M9 10a.5.5 0 0 0 1 0V9a.5.5 0 0 0-1 0v1a5 5 0 0 0 5 5h1a.5.5 0 0 0 0-1h-1a.5.5 0 0 0 0 1"/></svg>
+                </a>`;
+                }
+
+                // Call
+                if (row.Phone) {
+                    const cleanPhone = String(row.Phone).replace(/[^\d+]/g, '');
+                    actionsHtml += `<a href="tel:${cleanPhone}" title="Call Phone" class="text-blue-400 action-icon hover:text-blue-300 inline-block p-1">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                </a>`;
+                }
+
+                // Website
+                if (row.Website) {
+                    actionsHtml += `<a href="${row.Website}" target="_blank" title="Visit Website" class="text-purple-400 action-icon hover:text-purple-300 inline-block p-1">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/><path d="M2 12h20"/></svg>
+                </a>`;
+                }
+
+                // Instagram
+                if (row.Instagram) {
+                    actionsHtml += `<a href="${row.Instagram}" target="_blank" title="Instagram" class="text-pink-400 action-icon hover:text-pink-300 inline-block p-1">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="20" x="2" y="2" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" x2="17.51" y1="6.5" y2="6.5"/></svg>
+                </a>`;
+                }
+
+                const formatText = (t) => t ? String(t).substring(0, 100) + (String(t).length > 100 ? '...' : '') : '<span class="text-slate-600">—</span>';
+
+                tr.innerHTML = `
+                <td class="px-6 py-4 font-medium text-white break-words max-w-[200px]">${row.Name || '—'}</td>
+                <td class="px-6 py-4 truncate max-w-[150px]">${formatText(row.City)}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-slate-300 font-mono">${row.Phone || '<span class="text-slate-600">—</span>'}</td>
+                <td class="px-6 py-4 truncate max-w-[150px]">
+                    ${row.Website ? `<a href="${row.Website}" target="_blank" class="text-blue-400 hover:underline" title="${row.Website}">${String(row.Website).length > 30 ? String(row.Website).substring(0, 30) + '...' : row.Website}</a>` : '<span class="text-slate-600">—</span>'}
+                </td>
+                <td class="px-6 py-4 truncate max-w-[150px]">
+                    ${row.Instagram ? `<a href="${row.Instagram}" target="_blank" class="text-pink-400 hover:underline" title="${row.Instagram}">${String(row.Instagram).length > 30 ? String(row.Instagram).substring(0, 30) + '...' : row.Instagram}</a>` : '<span class="text-slate-600">—</span>'}
+                </td>
+                <td class="px-6 py-4 text-center">
+                    <div class="flex justify-center items-center gap-3">
+                        ${actionsHtml || '<span class="text-slate-600">—</span>'}
+                    </div>
+                </td>
+                <td class="px-6 py-4 break-words max-w-[300px] text-xs leading-relaxed text-slate-400">${formatText(row.About)}</td>
+                <td class="px-6 py-4 break-words max-w-[200px] text-xs leading-relaxed text-slate-400">${formatText(row.Notes)}</td>
+            `;
+                tableBody.appendChild(tr);
+            });
+
+            tableInfo.innerText = `Showing ${filteredData.length} records`;
+        }
+
+        searchInput.addEventListener('input', renderTable);
+
+        document.querySelectorAll('th[data-sort]').forEach(th => {
+            th.addEventListener('click', () => {
+                const column = th.getAttribute('data-sort');
+                if (currentSort.column === column) {
+                    currentSort.asc = !currentSort.asc;
+                } else {
+                    currentSort.column = column;
+                    currentSort.asc = true;
+                }
+                renderTable();
+            });
+        });
+
+    </script>
+</body>
+
+</html>

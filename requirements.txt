@@ -1,0 +1,10 @@
+# Backend Dependencies
+fastapi
+uvicorn[standard]
+selenium
+pandas
+openpyxl
+google-api-python-client
+google-auth
+python-dotenv
+ddgs
