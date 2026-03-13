@@ -29,9 +29,11 @@ BROWSERLESS_URL = f"wss://chrome.browserless.io?token={BROWSERLESS_TOKEN}"
 # ═══════════════════════════════════════════════════════════════════════
 #  File & Path Settings
 # ═══════════════════════════════════════════════════════════════════════
-OUTPUT_FILE = os.getenv("OUTPUT_FILE", "gym_leads.xlsx")
+# Vercel functions have a read-only filesystem except for /tmp
+_is_vercel = os.getenv("VERCEL") == "1"
+OUTPUT_FILE = os.getenv("OUTPUT_FILE", "/tmp/gym_leads.xlsx" if _is_vercel else "gym_leads.xlsx")
 EXCEL_OUTPUT_FILE = OUTPUT_FILE
-LOG_FILE = os.getenv("LOG_FILE", "lead_extractor.log")
+LOG_FILE = os.getenv("LOG_FILE", "/tmp/lead_extractor.log" if _is_vercel else "lead_extractor.log")
 
 # ═══════════════════════════════════════════════════════════════════════
 #  Data & Export Settings

@@ -76,7 +76,7 @@ async def get_job(job_id: str):
 
 @app.get("/stream")
 async def stream_scrape(request: Request, url: str, model: str = "google_maps"):
-    job_id = str(uuid.uuid4())[:8]
+    job_id = uuid.uuid4().hex[:8]
     q: queue.Queue = queue.Queue()
     
     # Register the job
@@ -128,7 +128,14 @@ async def stream_scrape(request: Request, url: str, model: str = "google_maps"):
             else:
                 # Default: Google Maps (Selenium)
                 q.put(format_sse("status", {"message": "Initializing browser...", "progress": 5}))
-                driver = create_driver()
+                try:
+                    driver = create_driver()
+                except Exception as e:
+                    if os.getenv("VERCEL") == "1" and not config.BROWSERLESS_TOKEN:
+                        q.put(format_sse("error", {"message": "Google Maps extraction requires BROWSERLESS_TOKEN environment variable in Vercel. Please configure it or use DuckDuckGo."}))
+                        jobs[job_id]["status"] = "failed"
+                        return
+                    raise e
 
                 q.put(format_sse("status", {"message": "Loading search URL...", "progress": 10}))
                 if not safe_load(driver, url):
@@ -298,6 +305,9 @@ def get_whatsapp_driver():
 
 @app.post("/whatsapp/send-bulk")
 async def send_bulk_whatsapp(request: Request):
+    if os.getenv("VERCEL") == "1":
+        return JSONResponse(status_code=400, content={"error": "WhatsApp automation is not supported in Vercel. Please run locally."})
+        
     data = await request.json()
     leads = data.get("leads", [])
     
@@ -348,7 +358,7 @@ async def send_bulk_whatsapp(request: Request):
                     except:
                         time.sleep(1)
                 
-                if send_btn:
+                if send_btn is not None:
                     send_btn.click()
                     logging.info(f"Message sent to {phone}")
                     time.sleep(2) # Buffer between sends
@@ -361,13 +371,27 @@ async def send_bulk_whatsapp(request: Request):
     threading.Thread(target=automation_thread, daemon=True).start()
     return {"message": "Automation started. Please ensure you are logged into WhatsApp Web in the window that opened."}
 
-@app.get("/download")
-async def download_excel():
-    filename = config.OUTPUT_FILE
-    if os.path.exists(filename):
-        return FileResponse(
-            filename,
-            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            filename=filename
-        )
-    return JSONResponse(status_code=404, content={"message": "Excel file not found. Please run an extraction first."})
+@app.post("/download")
+async def download_excel(request: Request):
+    data = await request.json()
+    records = data.get("records", [])
+    if not records:
+        return JSONResponse(status_code=400, content={"error": "No records to export"})
+    
+    import pandas as pd
+    from io import BytesIO
+    
+    # Build dataframe only with allowed columns
+    safe_records = [{k: r.get(k, "") for k in config.COLUMNS} for r in records]
+    df = pd.DataFrame(safe_records, columns=config.COLUMNS)
+    
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        df.to_excel(writer, index=False)
+    output.seek(0)
+    
+    return StreamingResponse(
+        output,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f"attachment; filename=leads_export.xlsx"}
+    )
