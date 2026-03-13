@@ -14,9 +14,6 @@ import sys
 import os
 import uuid
 from datetime import datetime
-# Add the parent directory to sys.path so we can import config and lead
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
 from fastapi import FastAPI, Request
 from fastapi.responses import StreamingResponse, FileResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
