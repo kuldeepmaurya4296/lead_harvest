@@ -276,6 +276,9 @@ async def stream_scrape(request: Request, url: str, model: str = "google_maps"):
     threading.Thread(target=scrape_thread, daemon=True).start()
 
     async def event_generator():
+        # Immediate feedback to flush buffers and update UI
+        yield format_sse("status", {"message": "Connected! Initializing scraper engine...", "progress": 1})
+        
         while True:
             if await request.is_disconnected():
                 break
@@ -287,7 +290,7 @@ async def stream_scrape(request: Request, url: str, model: str = "google_maps"):
                 yield msg
             except queue.Empty:
                 yield ": keep-alive\n\n"
-                await asyncio.sleep(1)
+                await asyncio.sleep(0.1) # Poll faster for lower latency
 
     return StreamingResponse(
         event_generator(), 
